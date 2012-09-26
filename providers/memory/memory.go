@@ -2,7 +2,7 @@ package memory
 
 import (
 	"container/list"
-	"github.com/astaxie/sessionmanager"
+	"github.com/astaxie/session"
 	"sync"
 	"time"
 )
@@ -31,7 +31,7 @@ func (st *SessionStore) Get(key interface{}) interface{} {
 	return nil
 }
 
-func (st *SessionStore) Del(key interface{}) error {
+func (st *SessionStore) Delete(key interface{}) error {
 	delete(st.value, key)
 	pder.SessionUpdate(st.sid)
 	return nil
@@ -47,7 +47,7 @@ type Provider struct {
 	list     *list.List               //用来做gc
 }
 
-func (pder *Provider) SessionInit(sid string) (sessionmanager.Session, error) {
+func (pder *Provider) SessionInit(sid string) (session.Session, error) {
 	pder.lock.Lock()
 	defer pder.lock.Unlock()
 	v := make(map[interface{}]interface{}, 0)
@@ -57,7 +57,7 @@ func (pder *Provider) SessionInit(sid string) (sessionmanager.Session, error) {
 	return newsess, nil
 }
 
-func (pder *Provider) SessionRead(sid string) (sessionmanager.Session, error) {
+func (pder *Provider) SessionRead(sid string) (session.Session, error) {
 	if element, ok := pder.sessions[sid]; ok {
 		return element.Value.(*SessionStore), nil
 	} else {
@@ -107,5 +107,5 @@ func (pder *Provider) SessionUpdate(sid string) error {
 
 func init() {
 	pder.sessions = make(map[string]*list.Element, 0)
-	sessionmanager.Register("memory", pder)
+	session.Register("memory", pder)
 }
