@@ -55,7 +55,7 @@ at last in the handlerfunc you can use it like this
 ##How to write own provider
 When we develop a web app, maybe you want to write a provider because you must meet the requirements.
 
-Waite a provider is so easy. You only define two struct type(Session and Provider),which satisfy the interface definition.Maybe The memory provider is a good example for you.
+Write a provider is so easy. You only define two struct type(Session and Provider),which satisfy the interface definition.Maybe The memory provider is a good example for you.
 
 	type Session interface {
 		Set(key, value interface{}) bool //set session value
