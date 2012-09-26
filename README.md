@@ -58,14 +58,15 @@ When we develop a web app, maybe you want to write a provider because you must m
 Write a provider is so easy. You only define two struct type(Session and Provider),which satisfy the interface definition.Maybe The memory provider is a good example for you.
 
 	type Session interface {
-		Set(key, value interface{}) bool //set session value
-		Get(key interface{}) interface{} //get session value
-		Del(key interface{}) bool        //delete session value
+		Set(key, value interface{}) error //set session value
+		Get(key interface{}) interface{}  //get session value
+		Delete(key interface{}) error     //delete session value
+		SessionID() string                //back current sessionID
 	}
 	
 	type Provider interface {
 		SessionInit(sid string) (Session, error)
 		SessionRead(sid string) (Session, error)
-		SessionDestroy(sid string) bool
+		SessionDestroy(sid string) error
 		SessionGC(maxlifetime int64)
 	}
