@@ -2,7 +2,6 @@ package memory
 
 import (
 	"container/list"
-	"fmt"
 	"github.com/astaxie/sessionmanager"
 	"sync"
 	"time"
@@ -49,9 +48,7 @@ func (this *Provider) SessionInit(sid string) (sessionmanager.Session, error) {
 	defer this.lock.Unlock()
 	v := make(map[interface{}]interface{}, 0)
 	newsess := &SessionStore{sid: sid, timeAccessed: time.Now(), value: v}
-	fmt.Println(newsess)
 	element := this.list.PushBack(newsess)
-	fmt.Println(element)
 	this.sessions[sid] = element
 	return newsess, nil
 }
@@ -98,13 +95,9 @@ func (this *Provider) SessionGC(maxlifetime int64) {
 func (this *Provider) SessionUpdate(sid string) bool {
 	this.lock.Lock()
 	defer this.lock.Unlock()
-	fmt.Println("update")
-	fmt.Println(this.sessions)
 	if element, ok := this.sessions[sid]; ok {
-		fmt.Println("begin moveToFront")
 		element.Value.(*SessionStore).timeAccessed = time.Now()
 		this.list.MoveToFront(element)
-		fmt.Println("end moveToFront")
 		return true
 	} else {
 		return false
