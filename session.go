@@ -1,4 +1,4 @@
-package sessionmanager
+package session
 
 import (
 	"crypto/rand"
@@ -12,15 +12,16 @@ import (
 )
 
 type Session interface {
-	Set(key, value interface{}) bool //set session value
-	Get(key interface{}) interface{} //get session value
-	Del(key interface{}) bool        //delete session value
+	Set(key, value interface{}) error //set session value
+	Get(key interface{}) interface{}  //get session value
+	Delete(key interface{}) error     //delete session value
+	SessionID() string                //back current sessionID
 }
 
 type Provider interface {
 	SessionInit(sid string) (Session, error)
 	SessionRead(sid string) (Session, error)
-	SessionDestroy(sid string) bool
+	SessionDestroy(sid string) error
 	SessionGC(maxlifetime int64)
 }
 
@@ -39,61 +40,63 @@ func Register(name string, provide Provider) {
 	provides[name] = provide
 }
 
-type SessionManager struct {
+type Manager struct {
 	cookieName  string     //private cookiename
 	lock        sync.Mutex // protects session
 	provider    Provider
 	maxlifetime int64
 }
 
-func NewSessionManager(provideName, cookieName string, maxlifetime int64) (*SessionManager, error) {
+func NewManager(provideName, cookieName string, maxlifetime int64) (*Manager, error) {
 	provider, ok := provides[provideName]
 	if !ok {
 		return nil, fmt.Errorf("session: unknown provide %q (forgotten import?)", provideName)
 	}
-	return &SessionManager{provider: provider, cookieName: cookieName, maxlifetime: maxlifetime}, nil
+	return &Manager{provider: provider, cookieName: cookieName, maxlifetime: maxlifetime}, nil
 }
 
 //get Session
-func (this *SessionManager) SessionStart(w http.ResponseWriter, r *http.Request) (session Session) {
-	this.lock.Lock()
-	defer this.lock.Unlock()
-	cookie, err := r.Cookie(this.cookieName)
+func (manager *Manager) SessionStart(w http.ResponseWriter, r *http.Request) (session Session) {
+	manager.lock.Lock()
+	defer manager.lock.Unlock()
+	cookie, err := r.Cookie(manager.cookieName)
 	if err != nil || cookie.Value == "" {
-		sid := this.sessionId()
-		session, _ = this.provider.SessionInit(sid)
-		cookie := http.Cookie{Name: this.cookieName, Value: url.QueryEscape(sid), Path: "/"}
+		sid := manager.sessionId()
+		session, _ = manager.provider.SessionInit(sid)
+		expiration := time.Now()
+		expiration = expiration.Add(time.Duration(manager.maxlifetime))
+		cookie := http.Cookie{Name: manager.cookieName, Value: url.QueryEscape(sid), Path: "/", HttpOnly: true, Expires: expiration, MaxAge: -1}
 		http.SetCookie(w, &cookie)
 	} else {
 		sid, _ := url.QueryUnescape(cookie.Value)
-		session, _ = this.provider.SessionRead(sid)
+		session, _ = manager.provider.SessionRead(sid)
 	}
 	return
 }
 
 //Destroy sessionid
-func (this *SessionManager) SessionDestroy(w http.ResponseWriter, r *http.Request) {
-	cookie, err := r.Cookie(this.cookieName)
+func (manager *Manager) SessionDestroy(w http.ResponseWriter, r *http.Request) {
+	cookie, err := r.Cookie(manager.cookieName)
 	if err != nil || cookie.Value == "" {
 		return
 	} else {
-		this.lock.Lock()
-		defer this.lock.Unlock()
-		this.provider.SessionDestroy(cookie.Value)
+		manager.lock.Lock()
+		defer manager.lock.Unlock()
+		manager.provider.SessionDestroy(cookie.Value)
 		expiration := time.Now()
-		cookie := http.Cookie{Name: this.cookieName, Expires: expiration}
+		cookie := http.Cookie{Name: manager.cookieName, Path: "/", HttpOnly: true, Expires: expiration, MaxAge: -1}
 		http.SetCookie(w, &cookie)
 	}
 }
 
-func (this *SessionManager) GC() {
-	this.lock.Lock()
-	defer this.lock.Unlock()
-	this.provider.SessionGC(this.maxlifetime)
-	time.AfterFunc(time.Duration(this.maxlifetime), func() { this.GC() })
+func (manager *Manager) GC() {
+	manager.lock.Lock()
+	defer manager.lock.Unlock()
+	manager.provider.SessionGC(manager.maxlifetime)
+	time.AfterFunc(time.Duration(manager.maxlifetime), func() { manager.GC() })
 }
 
-func (this *SessionManager) sessionId() string {
+func (manager *Manager) sessionId() string {
 	b := make([]byte, 32)
 	if _, err := io.ReadFull(rand.Reader, b); err != nil {
 		return ""
