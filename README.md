@@ -5,13 +5,13 @@ sessionmanager is a golang session manager. It can use session for many provider
 
 ##How to install
 
-	go get github.com/astaxie/sessionmanager
+	go get github.com/astaxie/session
 
 
 ##install providers
 Now I complete a memory provider. The next I will develop other providers.
 
-	go get github.com/astaxie/sessionmanager/providers/memory
+	go get github.com/astaxie/session/providers/memory
 
 ##How do we use it?
 
@@ -19,17 +19,17 @@ first you must import it
 
 
 	import (
-		"github.com/astaxie/sessionmanager"
-		_ "github.com/astaxie/sessionmanager/providers/memory"
+		"github.com/astaxie/session"
+		_ "github.com/astaxie/session/providers/memory"
 	)
 
 then in you web app init the globalsession manager
 	
-	var globalSessions *sessionmanager.SessionManager
+	var globalSessions *session.Manager
 
 
 	func init() {
-		globalSessions, _ = sessionmanager.NewSessionManager("memory", "gosessionid", 3600)
+		globalSessions, _ = session.NewManager("memory", "gosessionid", 3600)
 		go globalSessions.GC()
 	}
 
