@@ -70,3 +70,7 @@ Write a provider is so easy. You only define two struct type(Session and Provide
 		SessionDestroy(sid string) error
 		SessionGC(maxlifetime int64)
 	}
+
+##LICENSE
+
+BSD License http://creativecommons.org/licenses/BSD/
