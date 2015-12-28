@@ -2,16 +2,23 @@ package memory
 
 import (
 	"container/list"
-	"github.com/astaxie/session"
+	"fmt"
+	"github.com/esushu/session"
 	"sync"
 	"time"
 )
 
+type SessionError string
+
+func (err SessionError) Error() string { return "Session Error: " + string(err) }
+
+var DoesNotExist = SessionError("Key does not exist ")
+
 var pder = &Provider{list: list.New()}
 
 type SessionStore struct {
-	sid          string                      //session id唯一标示	  	
-	timeAccessed time.Time                   //最后访问时间	  	
+	sid          string                      //session id唯一标示
+	timeAccessed time.Time                   //最后访问时间
 	value        map[interface{}]interface{} //session里面存储的值
 }
 
@@ -59,20 +66,27 @@ func (pder *Provider) SessionInit(sid string) (session.Session, error) {
 
 func (pder *Provider) SessionRead(sid string) (session.Session, error) {
 	if element, ok := pder.sessions[sid]; ok {
+		fmt.Println("SessionRead exist")
 		return element.Value.(*SessionStore), nil
-	} else {
-		sess, err := pder.SessionInit(sid)
-		return sess, err
 	}
-	return nil, nil
+
+	// yinfeng: 只做一件事，不做两件事
+	// } else {
+	// 	fmt.Println("SessionRead not exist, create new session")
+	// 	sess, err := pder.SessionInit(sid)
+	// 	return sess, err
+	// }
+	return nil, DoesNotExist
 }
 
 func (pder *Provider) SessionDestroy(sid string) error {
 	if element, ok := pder.sessions[sid]; ok {
+		fmt.Println("SessionDestroy success:", sid)
 		delete(pder.sessions, sid)
 		pder.list.Remove(element)
 		return nil
 	}
+	fmt.Println("SessionDestroy failed:", sid)
 	return nil
 }
 

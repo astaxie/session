@@ -60,14 +60,30 @@ func (manager *Manager) SessionStart(w http.ResponseWriter, r *http.Request) (se
 	manager.lock.Lock()
 	defer manager.lock.Unlock()
 	cookie, err := r.Cookie(manager.cookieName)
+
 	if err != nil || cookie.Value == "" {
+		fmt.Println("cookie is empty, new session.")
+
 		sid := manager.sessionId()
 		session, _ = manager.provider.SessionInit(sid)
 		cookie := http.Cookie{Name: manager.cookieName, Value: url.QueryEscape(sid), Path: "/", HttpOnly: true, MaxAge: int(manager.maxlifetime)}
 		http.SetCookie(w, &cookie)
 	} else {
 		sid, _ := url.QueryUnescape(cookie.Value)
-		session, _ = manager.provider.SessionRead(sid)
+		fmt.Println("cookie value:", cookie.Value, " sid:", sid)
+
+		// yinfeng: 修改 BUG ，修改 SessionRead 如果不存在，不创建新的返回
+		var readerr error
+		session, readerr = manager.provider.SessionRead(sid)
+		if readerr != nil {
+			// 如果不存在session, 则创建一个新的
+			fmt.Println("new session")
+			sid := manager.sessionId()
+			session, _ = manager.provider.SessionInit(sid)
+			cookie := http.Cookie{Name: manager.cookieName, Value: url.QueryEscape(sid), Path: "/", HttpOnly: true, MaxAge: int(manager.maxlifetime)}
+			http.SetCookie(w, &cookie)
+		}
+
 	}
 	return
 }
@@ -80,7 +96,9 @@ func (manager *Manager) SessionDestroy(w http.ResponseWriter, r *http.Request) {
 	} else {
 		manager.lock.Lock()
 		defer manager.lock.Unlock()
-		manager.provider.SessionDestroy(cookie.Value)
+		// yinfeng: 修改 BUG, 作者没有使用 QueryUnescape 转义，导致无法销毁 session
+		sid, _ := url.QueryUnescape(cookie.Value)
+		manager.provider.SessionDestroy(sid)
 		expiration := time.Now()
 		cookie := http.Cookie{Name: manager.cookieName, Path: "/", HttpOnly: true, Expires: expiration, MaxAge: -1}
 		http.SetCookie(w, &cookie)
